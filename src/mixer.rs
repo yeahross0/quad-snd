@@ -56,9 +56,12 @@ pub struct SoundId(usize);
 #[derive(Clone, Copy, Debug)]
 pub struct Volume(pub f32);
 
+#[derive(Clone, Copy, Debug)]
+pub struct Speed(pub f32);
+
 enum MixerMessage {
     Play(SoundId, Sound),
-    PlayExt(SoundId, Sound, Volume),
+    PlayExt(SoundId, Sound, Volume, Speed),
     SetVolume(SoundId, Volume),
     SetVolumeSelf(Volume),
     Stop(SoundId),
@@ -123,12 +126,12 @@ impl SoundMixer {
         sound_id
     }
 
-    pub fn play_ext(&mut self, sound: Sound, volume: Volume) -> SoundId {
+    pub fn play_ext(&mut self, sound: Sound, volume: Volume, speed: Speed) -> SoundId {
         let sound_id = SoundId(self.uid);
         self.uid += 1;
 
         self.driver
-            .send_event(MixerMessage::PlayExt(sound_id, sound, volume));
+            .send_event(MixerMessage::PlayExt(sound_id, sound, volume, speed));
 
         sound_id
     }
@@ -172,8 +175,9 @@ impl SoundGenerator<MixerMessage> for MixerInternal {
                     },
                 );
             }
-            MixerMessage::PlayExt(id, sound, volume) => {
+            MixerMessage::PlayExt(id, mut sound, volume, speed) => {
                 assert!(volume.0 <= 1.0);
+                sound.sample_rate *= speed.0;
                 let sample_rate_correction = sound.get_sample_rate_correction();
                 self.sounds.insert(
                     id,
